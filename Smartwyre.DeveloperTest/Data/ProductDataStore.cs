@@ -1,8 +1,8 @@
-﻿using Smartwyre.DeveloperTest.Types;
+using Smartwyre.DeveloperTest.Types;
 
 namespace Smartwyre.DeveloperTest.Data;
 
-public class ProductDataStore
+public class ProductDataStore : IProductDataStore
 {
     public Product GetProduct(string productIdentifier)
     {
