@@ -34,7 +34,7 @@ internal static class Program
             !decimal.TryParse(priceText, NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var price) ||
             !decimal.TryParse(volumeText, NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var volume))
         {
-            Console.Error.WriteLine("Invalid input. Use a named incentive and decimal numbers with a '.' separator.");
+            Console.Error.WriteLine("Invalid input. Use a supported incentive and decimal numbers with a '.' separator.");
             return 2;
         }
 

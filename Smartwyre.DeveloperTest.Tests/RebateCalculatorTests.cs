@@ -7,24 +7,24 @@ namespace Smartwyre.DeveloperTest.Tests;
 
 public class RebateCalculatorTests
 {
-    public static IEnumerable<object[]> InvalidInputs()
+    public static IEnumerable<object[]> EligibilityCases()
     {
         foreach (var type in new[] { IncentiveType.FixedCashAmount, IncentiveType.FixedRateRebate, IncentiveType.AmountPerUom })
         {
-            yield return new object[] { type, 0m, .1m, 20m, 3m, type != IncentiveType.FixedRateRebate };
-            yield return new object[] { type, 10m, 0m, 20m, 3m, type == IncentiveType.FixedRateRebate };
-            yield return new object[] { type, 10m, .1m, 0m, 3m, type == IncentiveType.FixedRateRebate };
-            yield return new object[] { type, 10m, .1m, 20m, 0m, type != IncentiveType.FixedCashAmount };
+            yield return new object[] { type, 0m, .1m, 20m, 3m, type == IncentiveType.FixedRateRebate };
+            yield return new object[] { type, 10m, 0m, 20m, 3m, type != IncentiveType.FixedRateRebate };
+            yield return new object[] { type, 10m, .1m, 0m, 3m, type != IncentiveType.FixedRateRebate };
+            yield return new object[] { type, 10m, .1m, 20m, 0m, type == IncentiveType.FixedCashAmount };
         }
     }
 
     [Theory]
-    [MemberData(nameof(InvalidInputs))]
+    [MemberData(nameof(EligibilityCases))]
     public void Only_inputs_required_by_the_incentive_must_be_nonzero(IncentiveType type,
-        decimal amount, decimal rate, decimal price, decimal volume, bool invalid)
+        decimal amount, decimal rate, decimal price, decimal volume, bool expectedEligible)
     {
         var result = Calculator(type).Calculate(new Rebate { Amount = amount, Percentage = rate }, Product(price), volume);
-        Assert.Equal(invalid, !result.HasValue);
+        Assert.Equal(expectedEligible, result.HasValue);
     }
 
     [Theory]
