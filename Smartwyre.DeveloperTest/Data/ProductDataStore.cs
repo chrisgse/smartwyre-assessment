@@ -6,7 +6,7 @@ public class ProductDataStore : IProductDataStore
 {
     public Product GetProduct(string productIdentifier)
     {
-        // Access database to retrieve account, code removed for brevity 
+        // Assessment placeholder: database lookup is omitted in the supplied starter.
         return new Product();
     }
 }

@@ -28,6 +28,7 @@ internal static class Program
         var valueText = Read(1, "Amount or fractional rate (e.g. 0.1 for 10%)");
         var priceText = Read(2, "Product price");
         var volumeText = Read(3, "Volume");
+        // Keep numeric input consistent across machine locales: '.' is the decimal separator.
         if (!Enum.TryParse<IncentiveType>(incentiveText, true, out var incentive) ||
             !Enum.IsDefined(incentive) ||
             !decimal.TryParse(valueText, NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var value) ||
@@ -46,6 +47,7 @@ internal static class Program
                 SupportedIncentiveType.FixedRateRebate | SupportedIncentiveType.AmountPerUom
         };
         var store = new DemoRebateStore(rebate);
+        // Register new calculators here; the service selects them by incentive type.
         var service = new RebateService(store, new DemoProductStore(product), new IRebateCalculator[]
         {
             new FixedCashAmountCalculator(), new FixedRateRebateCalculator(), new AmountPerUomCalculator()

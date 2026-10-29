@@ -2,6 +2,7 @@ using Smartwyre.DeveloperTest.Types;
 
 namespace Smartwyre.DeveloperTest.Calculators;
 
+// Keeps eligibility and arithmetic together, with no data-store access.
 public interface IRebateCalculator
 {
     IncentiveType Incentive { get; }

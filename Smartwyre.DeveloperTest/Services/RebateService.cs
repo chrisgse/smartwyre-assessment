@@ -7,6 +7,7 @@ using Smartwyre.DeveloperTest.Types;
 
 namespace Smartwyre.DeveloperTest.Services;
 
+// Coordinates the workflow; calculators own incentive-specific eligibility and arithmetic.
 public class RebateService : IRebateService
 {
     private readonly IRebateDataStore rebates;
@@ -25,12 +26,14 @@ public class RebateService : IRebateService
 
     public CalculateRebateResult Calculate(CalculateRebateRequest request)
     {
+        // A null request is a caller error; missing or ineligible data returns failure.
         ArgumentNullException.ThrowIfNull(request);
         if (string.IsNullOrWhiteSpace(request.RebateIdentifier) ||
             string.IsNullOrWhiteSpace(request.ProductIdentifier))
             return new CalculateRebateResult();
 
         var rebate = rebates.GetRebate(request.RebateIdentifier);
+        // Registration lets new incentives work without adding branches to this method.
         if (rebate == null || !calculators.TryGetValue(rebate.Incentive, out var calculator))
             return new CalculateRebateResult();
 
@@ -42,6 +45,7 @@ public class RebateService : IRebateService
         if (!amount.HasValue)
             return new CalculateRebateResult();
 
+        // Report success only after saving; let persistence failures reach the caller.
         rebates.StoreCalculationResult(rebate, amount.Value);
         return new CalculateRebateResult { Success = true };
     }

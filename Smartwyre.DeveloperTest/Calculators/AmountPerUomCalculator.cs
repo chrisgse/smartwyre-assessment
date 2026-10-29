@@ -15,6 +15,7 @@ public sealed class AmountPerUomCalculator : IRebateCalculator
             return null;
         }
 
+        // The amount is per unit; this formula does not use price or convert units.
         return rebate.Amount * volume;
     }
 }

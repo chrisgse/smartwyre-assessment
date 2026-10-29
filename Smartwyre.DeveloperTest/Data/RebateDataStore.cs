@@ -6,12 +6,12 @@ public class RebateDataStore : IRebateDataStore
 {
     public Rebate GetRebate(string rebateIdentifier)
     {
-        // Access database to retrieve account, code removed for brevity 
+        // Assessment placeholder: database lookup is omitted in the supplied starter.
         return new Rebate();
     }
 
-    public void StoreCalculationResult(Rebate account, decimal rebateAmount)
+    public void StoreCalculationResult(Rebate rebate, decimal rebateAmount)
     {
-        // Update account in database, code removed for brevity
+        // Assessment placeholder: a database implementation would persist the rebate amount.
     }
 }

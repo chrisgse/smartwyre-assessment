@@ -15,6 +15,7 @@ public sealed class FixedCashAmountCalculator : IRebateCalculator
             return null;
         }
 
+        // A flat payment is independent of product price and request volume.
         return rebate.Amount;
     }
 }
