@@ -80,15 +80,18 @@ The runner creates fresh demo rebate and product records for each calculation.
 The product supports all declared incentive flags. Demo data is held in memory;
 the original database stores are still placeholders, not production persistence.
 
-# Design and interview walkthrough
+# Design
 
-Start with `Services/RebateService.cs`, then one calculator, then its tests.
+The calculation flow starts in `Services/RebateService.cs`. Calculator
+implementations and their tests describe the rules for each incentive.
 
 1. `Program` registers the calculators and supplies console streams to
    `RebateConsole`. The console constructs the service with two store interfaces
-   and those registered calculators. This is manual dependency injection.
+   and the selected calculator for each calculation. This is manual dependency
+   injection.
 2. The service rejects missing identifiers, looks up the rebate, and selects a
-   calculator by incentive type. Unknown types and missing records return failure.
+   calculator by incentive type before looking up the product. Unknown types and
+   missing records return failure.
 3. Each calculator declares its nonzero input requirements. Both the console and
    the calculator use that declaration; the calculator also checks the product's
    supported-incentive flags. A nullable decimal distinguishes ineligibility from
@@ -124,7 +127,7 @@ needed by their consumers.
 - Duplicate calculator registrations fail at construction as a configuration
   error. Store failures and calculation overflow propagate from the service.
 
-## Adding an incentive during the interview
+## Adding an incentive
 
 1. Add its domain member to `IncentiveType` and a distinct power-of-two flag to
    `SupportedIncentiveType` if product eligibility needs one.
@@ -146,19 +149,14 @@ it appears in the console, accepts zero amount and volume, rejects zero price,
 and calculates 40 from a price of 20. It also works through command-line arguments.
 The service and console have no hard-coded knowledge of this fourth strategy.
 
-## Tradeoffs to discuss
+## Tradeoffs
 
 A switch is reasonable for three permanently fixed rules. Separate calculators
 are justified here by the explicit requirement to add many incentive types.
-Avoid presenting the pattern as universally necessary. A dependency injection
-framework, generic repository, and reflection-based discovery would add machinery
-without helping this small exercise.
+Manual dependency injection and registration keep composition explicit with few
+dependencies.
 
 The result retains the starter's boolean contract. A production API could expose
 structured failure reasons and the calculated amount if consumers need them.
-Real persistence would also need transaction and retry/idempotency requirements;
-this exercise does not invent those requirements.
-
-Before submitting, explain the fixed-rate example aloud, change a rule yourself,
-and run the tests. Be ready to explain why the cash calculation ignores volume,
-why negative inputs are preserved, and why a save failure cannot report success.
+Persistent storage would require explicit decisions about transactions, retries,
+and idempotency.
