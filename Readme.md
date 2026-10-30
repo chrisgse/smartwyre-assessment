@@ -62,8 +62,10 @@ dotnet run --project Smartwyre.DeveloperTest.Runner -- FixedCashAmount 10 20 3
 dotnet run --project Smartwyre.DeveloperTest.Runner -- AmountPerUom 2.5 20 4
 ```
 
-These return 10 and 10 respectively. Run without arguments for prompts. Invalid
-incentives, blank entries, and invalid numbers show an explanation and repeat only
+These return 10 and 10 respectively. Run without arguments for four numbered prompts:
+incentive type, rebate amount or rate, product price, then volume. Each answer is
+validated before the next prompt appears. Invalid incentives, blank entries, and
+invalid numbers show an explanation and repeat only
 that prompt. Required values must be nonzero for the selected incentive; irrelevant
 zeros and negative values retain the rules below. Numbers use `.` as the decimal
 separator. End-of-input cancels cleanly. Command-line arguments report errors without

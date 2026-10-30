@@ -97,7 +97,7 @@ public class RunnerTests
         var result = await Run("", incentive, value, price, volume);
 
         Assert.Equal(expectedExitCode, result.ExitCode);
-        Assert.DoesNotContain("Incentive (", result.Output);
+        Assert.DoesNotContain("[1/4]", result.Output);
     }
 
     private static void AssertAmount(string expected, string output)

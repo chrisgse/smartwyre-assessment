@@ -20,7 +20,7 @@ internal static class Program
         string Read(int index, string prompt)
         {
             if (args.Length == 4) return args[index].Trim();
-            Console.Write(prompt + ": ");
+            Console.Write($"[{index + 1}/4] {prompt}: ");
             var input = Console.ReadLine();
             if (input == null)
                 Console.Error.WriteLine("Input ended. No calculation was made.");
@@ -30,7 +30,7 @@ internal static class Program
         IncentiveType incentive;
         while (true)
         {
-            var incentiveText = Read(0, "Incentive (FixedCashAmount, FixedRateRebate, AmountPerUom)");
+            var incentiveText = Read(0, "Incentive type (FixedCashAmount, FixedRateRebate, AmountPerUom)");
             if (incentiveText == null) return 2;
             if (Enum.TryParse(incentiveText, true, out incentive) && Enum.IsDefined(incentive))
                 break;
@@ -65,9 +65,15 @@ internal static class Program
             }
         }
 
-        if (!TryReadNumber(1, "Amount or fractional rate (e.g. 0.1 for 10%)", true, out var value) ||
-            !TryReadNumber(2, "Product price", incentive == IncentiveType.FixedRateRebate, out var price) ||
-            !TryReadNumber(3, "Volume", incentive != IncentiveType.FixedCashAmount, out var volume))
+        var valuePrompt = incentive == IncentiveType.FixedRateRebate
+            ? "Rebate rate (e.g. 0.1 for 10%)"
+            : "Rebate amount";
+
+        if (!TryReadNumber(1, valuePrompt, true, out var value))
+            return 2;
+        if (!TryReadNumber(2, "Product price", incentive == IncentiveType.FixedRateRebate, out var price))
+            return 2;
+        if (!TryReadNumber(3, "Volume", incentive != IncentiveType.FixedCashAmount, out var volume))
             return 2;
 
         var rebate = new Rebate { Identifier = "demo-rebate", Incentive = incentive, Amount = value, Percentage = value };
