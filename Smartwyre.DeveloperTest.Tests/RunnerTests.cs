@@ -85,6 +85,16 @@ public class RunnerTests
     }
 
     [Fact]
+    public async Task Multiple_incentive_names_are_rejected_before_accepting_a_single_choice()
+    {
+        var result = await Run("FixedRateRebate, FixedCashAmount\nFixedRateRebate\n0.1\n20\n3\nq\n");
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Contains("Invalid input", result.Error);
+        AssertAmount("6", result.Output);
+    }
+
+    [Fact]
     public void Unregistered_incentive_is_rejected_even_if_it_is_a_known_enum_value()
     {
         using var input = new StringReader("FixedRateRebate\n99\n0\n20\n0\n");
@@ -183,6 +193,7 @@ public class RunnerTests
 
     [Theory]
     [InlineData("unknown", "0.1", "20", "3", 2)]
+    [InlineData("FixedRateRebate, FixedCashAmount", "10", "20", "3", 2)]
     [InlineData("FixedRateRebate", "wrong", "20", "3", 2)]
     [InlineData("FixedRateRebate", "0", "20", "3", 1)]
     [InlineData("FixedRateRebate", "0.1", "20", "3", 0)]

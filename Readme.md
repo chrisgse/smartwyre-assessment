@@ -66,7 +66,8 @@ These return 10 and 10 respectively. Run without arguments for four numbered pro
 incentive type, rebate amount or rate, product price, then volume. Each answer is
 validated before the next prompt appears. Invalid incentives, blank entries, and
 invalid numbers show an explanation and repeat only
-that prompt. Required values must be nonzero for the selected incentive; irrelevant
+that prompt. Enter one incentive at a time; combined names are rejected.
+Required values must be nonzero for the selected incentive; irrelevant
 zeros and negative values retain the rules below. Numbers use `.` as the decimal
 separator. After each calculation attempt, interactive mode returns to the first
 prompt; enter `q` there to quit. End-of-input between attempts ends the session;
