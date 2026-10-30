@@ -62,9 +62,13 @@ dotnet run --project Smartwyre.DeveloperTest.Runner -- FixedCashAmount 10 20 3
 dotnet run --project Smartwyre.DeveloperTest.Runner -- AmountPerUom 2.5 20 4
 ```
 
-These return 10 and 10 respectively. Run without arguments for prompts. Numbers use
-`.` as the decimal separator. Exit codes: 0 = success, 1 = ineligible calculation,
-2 = invalid command-line input or decimal overflow.
+These return 10 and 10 respectively. Run without arguments for prompts. Invalid
+incentives, blank entries, and invalid numbers show an explanation and repeat only
+that prompt. Required values must be nonzero for the selected incentive; irrelevant
+zeros and negative values retain the rules below. Numbers use `.` as the decimal
+separator. End-of-input cancels cleanly. Command-line arguments report errors without
+starting interactive prompts. Exit codes: 0 = success, 1 = ineligible calculation,
+2 = invalid command-line input, cancelled input, or decimal overflow.
 
 The runner creates one demo rebate and product from the inputs. The product supports
 all three incentives. Its stores retain the calculation only during that run;

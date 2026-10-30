@@ -19,25 +19,56 @@ internal static class Program
 
         string Read(int index, string prompt)
         {
-            if (args.Length == 4) return args[index];
+            if (args.Length == 4) return args[index].Trim();
             Console.Write(prompt + ": ");
-            return Console.ReadLine() ?? "";
+            var input = Console.ReadLine();
+            if (input == null)
+                Console.Error.WriteLine("Input ended. No calculation was made.");
+            return input?.Trim();
         }
 
-        var incentiveText = Read(0, "Incentive (FixedCashAmount, FixedRateRebate, AmountPerUom)");
-        var valueText = Read(1, "Amount or fractional rate (e.g. 0.1 for 10%)");
-        var priceText = Read(2, "Product price");
-        var volumeText = Read(3, "Volume");
-        // Keep numeric input consistent across machine locales: '.' is the decimal separator.
-        if (!Enum.TryParse<IncentiveType>(incentiveText, true, out var incentive) ||
-            !Enum.IsDefined(incentive) ||
-            !decimal.TryParse(valueText, NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var value) ||
-            !decimal.TryParse(priceText, NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var price) ||
-            !decimal.TryParse(volumeText, NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var volume))
+        IncentiveType incentive;
+        while (true)
         {
-            Console.Error.WriteLine("Invalid input. Use a supported incentive and decimal numbers with a '.' separator.");
-            return 2;
+            var incentiveText = Read(0, "Incentive (FixedCashAmount, FixedRateRebate, AmountPerUom)");
+            if (incentiveText == null) return 2;
+            if (Enum.TryParse(incentiveText, true, out incentive) && Enum.IsDefined(incentive))
+                break;
+
+            Console.Error.WriteLine("Invalid input. Enter FixedCashAmount, FixedRateRebate, or AmountPerUom.");
+            if (args.Length == 4) return 2;
         }
+
+        bool TryReadNumber(int index, string prompt, bool requiresNonzero, out decimal number)
+        {
+            number = 0m;
+            while (true)
+            {
+                var text = Read(index, prompt);
+                if (text == null) return false;
+
+                // Keep numeric input consistent across machine locales.
+                if (decimal.TryParse(text, NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint,
+                    CultureInfo.InvariantCulture, out number))
+                {
+                    // Prompt feedback mirrors eligibility; command-line inputs are checked by the service.
+                    if (args.Length == 4 || !requiresNonzero || number != 0m)
+                        return true;
+
+                    Console.Error.WriteLine($"Invalid input. {prompt} must be nonzero for {incentive}.");
+                }
+                else
+                {
+                    Console.Error.WriteLine("Invalid input. Enter a decimal number using '.' as the decimal separator.");
+                }
+                if (args.Length == 4) return false;
+            }
+        }
+
+        if (!TryReadNumber(1, "Amount or fractional rate (e.g. 0.1 for 10%)", true, out var value) ||
+            !TryReadNumber(2, "Product price", incentive == IncentiveType.FixedRateRebate, out var price) ||
+            !TryReadNumber(3, "Volume", incentive != IncentiveType.FixedCashAmount, out var volume))
+            return 2;
 
         var rebate = new Rebate { Identifier = "demo-rebate", Incentive = incentive, Amount = value, Percentage = value };
         var product = new Product
