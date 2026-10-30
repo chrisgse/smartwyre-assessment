@@ -12,6 +12,7 @@ namespace Smartwyre.DeveloperTest.Runner;
 
 public static class RebateConsole
 {
+    // Supplied streams let the same flow run in a real console or in tests.
     public static int Run(string[] args, IEnumerable<IRebateCalculator> calculators,
         TextReader input, TextWriter output, TextWriter error)
     {
@@ -31,6 +32,7 @@ public static class RebateConsole
             return 2;
         }
 
+        // Retain the last exit status so EOF between attempts can end the session cleanly.
         int? lastExitCode = null;
 
         string Read(int index, string prompt)
@@ -106,6 +108,7 @@ public static class RebateConsole
             : "Rebate amount";
 
         values = default;
+        // Short-circuit so each answer is valid before the next field is requested.
         if (!TryReadNumber(1, valuePrompt, requirements.Amount || requirements.Percentage, out var value) ||
             !TryReadNumber(2, "Product price", requirements.Price, out var price) ||
             !TryReadNumber(3, "Volume", requirements.Volume, out var volume))
@@ -118,6 +121,7 @@ public static class RebateConsole
     private static int Calculate(IRebateCalculator calculator, CalculationInputs values,
         TextWriter output, TextWriter error)
     {
+        // One console value supplies amount or rate. Independent values would need an expanded input contract.
         var rebate = new Rebate
         {
             Identifier = "demo-rebate", Incentive = calculator.Incentive,
@@ -152,7 +156,7 @@ public static class RebateConsole
 
     private readonly record struct CalculationInputs(decimal Value, decimal Price, decimal Volume);
 
-    // The supplied database stores are placeholders. Demo data lives only for this run.
+    // These adapters demonstrate the service workflow; each calculation gets fresh in-memory records.
     private sealed class DemoRebateStore(Rebate rebate) : IRebateDataStore
     {
         public decimal Amount { get; private set; }

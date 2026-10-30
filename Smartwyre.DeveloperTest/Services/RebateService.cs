@@ -42,6 +42,7 @@ public class RebateService : IRebateService
             return new CalculateRebateResult();
 
         var amount = calculator.Calculate(rebate, product, request.Volume);
+        // Null means ineligible; an actual calculated zero remains a valid result to save.
         if (!amount.HasValue)
             return new CalculateRebateResult();
 
