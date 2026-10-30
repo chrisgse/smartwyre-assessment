@@ -68,12 +68,15 @@ validated before the next prompt appears. Invalid incentives, blank entries, and
 invalid numbers show an explanation and repeat only
 that prompt. Required values must be nonzero for the selected incentive; irrelevant
 zeros and negative values retain the rules below. Numbers use `.` as the decimal
-separator. End-of-input cancels cleanly. Command-line arguments report errors without
-starting interactive prompts. Exit codes: 0 = success, 1 = ineligible calculation,
-2 = invalid command-line input, cancelled input, or decimal overflow.
+separator. After each calculation attempt, interactive mode returns to the first
+prompt; enter `q` there to quit. End-of-input between attempts ends the session;
+end-of-input partway through an attempt cancels it without a calculation.
+Command-line arguments run one calculation and exit. Exit codes: 0 = success or
+interactive quit, 1 = ineligible calculation, 2 = invalid command-line input,
+cancelled input, or decimal overflow.
 
-The runner creates one demo rebate and product from the inputs. The product supports
-all three incentives. Its stores retain the calculation only during that run;
+The runner creates fresh demo rebate and product records for each calculation.
+The product supports all declared incentive flags. Demo data is held in memory;
 the original database stores are still placeholders, not production persistence.
 
 # Design and interview walkthrough

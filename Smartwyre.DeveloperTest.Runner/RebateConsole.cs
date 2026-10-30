@@ -31,93 +31,106 @@ public static class RebateConsole
             return 2;
         }
 
+        int? lastExitCode = null;
+
         string Read(int index, string prompt)
         {
             if (args.Length == 4) return args[index].Trim();
             output.Write($"[{index + 1}/4] {prompt}: ");
             var text = input.ReadLine();
-            if (text == null)
-                error.WriteLine("Input ended. No calculation was made.");
+            // EOF between completed attempts ends the session without cancelling a new request.
+            if (text == null && (index != 0 || !lastExitCode.HasValue))
+                error.WriteLine("Input ended. Current calculation cancelled.");
             return text?.Trim();
         }
 
-        IncentiveType incentive;
-        IRebateCalculator selectedCalculator;
         while (true)
         {
-            var incentiveText = Read(0, $"Incentive type ({choices})");
-            if (incentiveText == null) return 2;
-            if (Enum.TryParse(incentiveText, true, out incentive) &&
-                registered.TryGetValue(incentive, out selectedCalculator))
-                break;
-
-            error.WriteLine($"Invalid input. Enter one of: {choices}.");
-            if (args.Length == 4) return 2;
-        }
-
-        bool TryReadNumber(int index, string prompt, bool requiresNonzero, out decimal number)
-        {
-            number = 0m;
+            IncentiveType incentive;
+            IRebateCalculator selectedCalculator;
             while (true)
             {
-                var text = Read(index, prompt);
-                if (text == null) return false;
+                var incentiveText = Read(0, $"Incentive type ({choices}) or q to quit");
+                if (incentiveText == null) return lastExitCode ?? 2;
+                if (args.Length == 0 && incentiveText.Equals("q", StringComparison.OrdinalIgnoreCase))
+                    return 0;
+                if (Enum.TryParse(incentiveText, true, out incentive) &&
+                    registered.TryGetValue(incentive, out selectedCalculator))
+                    break;
 
-                // Keep numeric input consistent across machine locales.
-                if (decimal.TryParse(text, NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint,
-                    CultureInfo.InvariantCulture, out number))
-                {
-                    // Prompt feedback mirrors eligibility; command-line inputs are checked by the service.
-                    if (args.Length == 4 || !requiresNonzero || number != 0m)
-                        return true;
-
-                    error.WriteLine($"Invalid input. {prompt} must be nonzero for {incentive}.");
-                }
-                else
-                {
-                    error.WriteLine("Invalid input. Enter a decimal number using '.' as the decimal separator.");
-                }
-                if (args.Length == 4) return false;
+                error.WriteLine($"Invalid input. Enter one of: {choices}.");
+                if (args.Length == 4) return 2;
             }
-        }
 
-        var requirements = selectedCalculator.InputRequirements;
-        var valuePrompt = requirements.Percentage
-            ? "Rebate rate (e.g. 0.1 for 10%)"
-            : "Rebate amount";
-
-        if (!TryReadNumber(1, valuePrompt, requirements.Amount || requirements.Percentage, out var value))
-            return 2;
-        if (!TryReadNumber(2, "Product price", requirements.Price, out var price))
-            return 2;
-        if (!TryReadNumber(3, "Volume", requirements.Volume, out var volume))
-            return 2;
-
-        var rebate = new Rebate { Identifier = "demo-rebate", Incentive = incentive, Amount = value, Percentage = value };
-        var product = new Product
-        {
-            Identifier = "demo-product", Price = price,
-            // Demo data supports all declared flags, including flags added for future incentives.
-            SupportedIncentives = Enum.GetValues<SupportedIncentiveType>()
-                .Aggregate((SupportedIncentiveType)0, (flags, next) => flags | next)
-        };
-        var store = new DemoRebateStore(rebate);
-        var service = new RebateService(store, new DemoProductStore(product), registered.Values);
-        try
-        {
-            var result = service.Calculate(new CalculateRebateRequest
+            bool TryReadNumber(int index, string prompt, bool requiresNonzero, out decimal number)
             {
-                RebateIdentifier = rebate.Identifier, ProductIdentifier = product.Identifier, Volume = volume
-            });
-            output.WriteLine(result.Success
-                ? $"Rebate calculated: {store.Amount.ToString(CultureInfo.InvariantCulture)}"
-                : "Rebate could not be calculated: inputs are ineligible.");
-            return result.Success ? 0 : 1;
-        }
-        catch (OverflowException)
-        {
-            error.WriteLine("The calculation exceeds the supported decimal range.");
-            return 2;
+                number = 0m;
+                while (true)
+                {
+                    var text = Read(index, prompt);
+                    if (text == null) return false;
+
+                    // Keep numeric input consistent across machine locales.
+                    if (decimal.TryParse(text, NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint,
+                        CultureInfo.InvariantCulture, out number))
+                    {
+                        // Prompt feedback mirrors eligibility; command-line inputs are checked by the service.
+                        if (args.Length == 4 || !requiresNonzero || number != 0m)
+                            return true;
+
+                        error.WriteLine($"Invalid input. {prompt} must be nonzero for {incentive}.");
+                    }
+                    else
+                    {
+                        error.WriteLine("Invalid input. Enter a decimal number using '.' as the decimal separator.");
+                    }
+                    if (args.Length == 4) return false;
+                }
+            }
+
+            var requirements = selectedCalculator.InputRequirements;
+            var valuePrompt = requirements.Percentage
+                ? "Rebate rate (e.g. 0.1 for 10%)"
+                : "Rebate amount";
+
+            if (!TryReadNumber(1, valuePrompt, requirements.Amount || requirements.Percentage, out var value))
+                return 2;
+            if (!TryReadNumber(2, "Product price", requirements.Price, out var price))
+                return 2;
+            if (!TryReadNumber(3, "Volume", requirements.Volume, out var volume))
+                return 2;
+
+            var rebate = new Rebate { Identifier = "demo-rebate", Incentive = incentive, Amount = value, Percentage = value };
+            var product = new Product
+            {
+                Identifier = "demo-product", Price = price,
+                // Demo data supports all declared flags, including flags added for future incentives.
+                SupportedIncentives = Enum.GetValues<SupportedIncentiveType>()
+                    .Aggregate((SupportedIncentiveType)0, (flags, next) => flags | next)
+            };
+            var store = new DemoRebateStore(rebate);
+            var service = new RebateService(store, new DemoProductStore(product), registered.Values);
+            try
+            {
+                var result = service.Calculate(new CalculateRebateRequest
+                {
+                    RebateIdentifier = rebate.Identifier, ProductIdentifier = product.Identifier, Volume = volume
+                });
+                output.WriteLine(result.Success
+                    ? $"Rebate calculated: {store.Amount.ToString(CultureInfo.InvariantCulture)}"
+                    : "Rebate could not be calculated: inputs are ineligible.");
+                lastExitCode = result.Success ? 0 : 1;
+            }
+            catch (OverflowException)
+            {
+                error.WriteLine("The calculation exceeds the supported decimal range.");
+                lastExitCode = 2;
+            }
+
+            if (args.Length == 4)
+                return lastExitCode.Value;
+
+            output.WriteLine();
         }
     }
 

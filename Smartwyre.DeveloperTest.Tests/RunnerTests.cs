@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Smartwyre.DeveloperTest.Calculators;
@@ -13,6 +14,48 @@ namespace Smartwyre.DeveloperTest.Tests;
 
 public class RunnerTests
 {
+    [Fact]
+    public async Task Interactive_session_calculates_multiple_rebates_before_quitting()
+    {
+        var result = await Run("FixedRateRebate\n0.1\n20\n3\nFixedCashAmount\n10\n0\n0\nq\n");
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Empty(result.Error);
+        Assert.Equal(new[] { 6m, 10m }, Amounts(result.Output));
+    }
+
+    [Theory]
+    [InlineData("q\n")]
+    [InlineData(" Q \n")]
+    public async Task Quit_at_incentive_prompt_exits_without_calculating(string input)
+    {
+        var result = await Run(input);
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Empty(result.Error);
+        Assert.Empty(Amounts(result.Output));
+    }
+
+    [Fact]
+    public async Task Cancelling_the_next_calculation_keeps_the_previous_result()
+    {
+        var result = await Run("FixedCashAmount\n10\n0\n0\nFixedRateRebate\n0.1\n");
+
+        Assert.Equal(2, result.ExitCode);
+        Assert.Contains("Input ended", result.Error);
+        Assert.Equal(new[] { 10m }, Amounts(result.Output));
+    }
+
+    [Fact]
+    public async Task Overflow_allows_another_calculation_in_the_same_session()
+    {
+        var result = await Run("FixedRateRebate\n2\n79228162514264337593543950335\n3\nFixedCashAmount\n10\n0\n0\nq\n");
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Contains("exceeds the supported decimal range", result.Error);
+        Assert.Equal(new[] { 10m }, Amounts(result.Output));
+    }
+
     [Fact]
     public void New_incentive_supplies_console_choices_and_input_rules_through_registration()
     {
@@ -143,6 +186,7 @@ public class RunnerTests
     [InlineData("FixedRateRebate", "wrong", "20", "3", 2)]
     [InlineData("FixedRateRebate", "0", "20", "3", 1)]
     [InlineData("FixedRateRebate", "0.1", "20", "3", 0)]
+    [InlineData("q", "0.1", "20", "3", 2)]
     public async Task Command_line_arguments_do_not_start_interactive_prompts(
         string incentive, string value, string price, string volume, int expectedExitCode)
     {
@@ -162,11 +206,19 @@ public class RunnerTests
 
     private static void AssertAmount(string expected, string output)
     {
-        const string prefix = "Rebate calculated: ";
-        Assert.Contains(prefix, output);
-        var amount = output[(output.LastIndexOf(prefix, StringComparison.Ordinal) + prefix.Length)..].Trim();
         Assert.Equal(decimal.Parse(expected, CultureInfo.InvariantCulture),
-            decimal.Parse(amount, CultureInfo.InvariantCulture));
+            Assert.Single(Amounts(output)));
+    }
+
+    private static decimal[] Amounts(string output)
+    {
+        const string prefix = "Rebate calculated: ";
+        return output.Split('\n')
+            .Where(line => line.Contains(prefix))
+            .Select(line => decimal.Parse(
+                line[(line.IndexOf(prefix, StringComparison.Ordinal) + prefix.Length)..].Trim(),
+                CultureInfo.InvariantCulture))
+            .ToArray();
     }
 
     // Exercise the real console process, so parsing, prompts, and calculations run together.
