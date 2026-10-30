@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Smartwyre.DeveloperTest.Calculators;
 using Smartwyre.DeveloperTest.Data;
 using Smartwyre.DeveloperTest.Services;
@@ -30,6 +31,127 @@ public class RebateServiceTests
         Assert.Same(store.Rebate, store.SavedRebate);
         Assert.Equal("rebate", store.Lookup);
         Assert.Equal("product", products.Lookup);
+    }
+
+    [Theory]
+    [InlineData(IncentiveType.FixedRateRebate)]
+    [InlineData(IncentiveType.AmountPerUom)]
+    public void Tiny_nonzero_inputs_can_produce_a_valid_zero_result(IncentiveType incentive)
+    {
+        const decimal smallestPositiveDecimal = 0.0000000000000000000000000001m;
+        var store = new RebateStore
+        {
+            Rebate = new Rebate { Incentive = incentive, Amount = smallestPositiveDecimal, Percentage = .1m }
+        };
+        var products = new ProductStore();
+        products.Product.Price = smallestPositiveDecimal;
+        var request = Request();
+        request.Volume = .1m;
+
+        // Decimal cannot represent these products: the result becomes zero, while the inputs stay eligible.
+        Assert.True(new RebateService(store, products, Calculators()).Calculate(request).Success);
+        Assert.Equal(0m, store.Amount);
+        Assert.Equal(1, store.Writes);
+    }
+
+    public static IEnumerable<object[]> ValidEdgeCases()
+    {
+        foreach (var limit in new[] { decimal.MinValue, decimal.MaxValue })
+        {
+            // Extreme irrelevant inputs must not affect the selected formula.
+            yield return new object[] { IncentiveType.FixedCashAmount, limit, decimal.MaxValue, decimal.MaxValue, decimal.MaxValue, limit };
+            yield return new object[] { IncentiveType.FixedRateRebate, decimal.MaxValue, 1m, limit, 1m, limit };
+            yield return new object[] { IncentiveType.AmountPerUom, limit, decimal.MaxValue, decimal.MaxValue, 1m, limit };
+        }
+
+        // The starter permits rates above 100% and signed inputs; no new restrictions are introduced.
+        yield return new object[] { IncentiveType.FixedRateRebate, 0m, 1.25m, 20m, 2m, 50m };
+        yield return new object[] { IncentiveType.FixedRateRebate, 0m, -.1m, 20m, 3m, -6m };
+        yield return new object[] { IncentiveType.FixedRateRebate, 0m, .1m, -20m, 3m, -6m };
+        yield return new object[] { IncentiveType.FixedRateRebate, 0m, -.1m, -20m, 3m, 6m };
+        yield return new object[] { IncentiveType.AmountPerUom, -2.5m, 0m, 0m, -4m, 10m };
+    }
+
+    [Theory]
+    [MemberData(nameof(ValidEdgeCases))]
+    public void Eligible_edge_values_persist_the_exact_result(IncentiveType incentive,
+        decimal amount, decimal percentage, decimal price, decimal volume, decimal expected)
+    {
+        var store = new RebateStore
+        {
+            Rebate = new Rebate { Incentive = incentive, Amount = amount, Percentage = percentage }
+        };
+        var products = new ProductStore();
+        products.Product.Price = price;
+        var request = Request();
+        request.Volume = volume;
+
+        Assert.True(new RebateService(store, products, Calculators()).Calculate(request).Success);
+        Assert.Equal(expected, store.Amount);
+        Assert.Equal(1, store.Writes);
+    }
+
+    public static IEnumerable<object[]> OverflowCases()
+    {
+        foreach (var limit in new[] { decimal.MinValue, decimal.MaxValue })
+        {
+            yield return new object[] { IncentiveType.FixedRateRebate, 0m, 2m, limit, 1m };
+            // Preserve the starter's multiplication order: an intermediate product can overflow.
+            yield return new object[] { IncentiveType.FixedRateRebate, 0m, 2m, limit, .1m };
+            yield return new object[] { IncentiveType.AmountPerUom, limit, 0m, 0m, 2m };
+        }
+    }
+
+    [Theory]
+    [MemberData(nameof(OverflowCases))]
+    public void Overflow_does_not_save_and_the_service_can_calculate_again(IncentiveType incentive,
+        decimal amount, decimal percentage, decimal price, decimal volume)
+    {
+        var store = new RebateStore
+        {
+            Rebate = new Rebate { Incentive = IncentiveType.FixedCashAmount, Amount = 10m }
+        };
+        var products = new ProductStore();
+        var service = new RebateService(store, products, Calculators());
+        Assert.True(service.Calculate(Request()).Success);
+
+        store.Rebate = new Rebate { Incentive = incentive, Amount = amount, Percentage = percentage };
+        products.Product.Price = price;
+        var request = Request();
+        request.Volume = volume;
+
+        Assert.Throws<OverflowException>(() => service.Calculate(request));
+        Assert.Equal(1, store.Writes);
+        Assert.Equal(10m, store.Amount);
+
+        store.Rebate = new Rebate { Incentive = IncentiveType.FixedCashAmount, Amount = 20m };
+        Assert.True(service.Calculate(Request()).Success);
+        Assert.Equal(2, store.Writes);
+        Assert.Equal(20m, store.Amount);
+    }
+
+    [Theory]
+    [InlineData(IncentiveType.FixedCashAmount)]
+    [InlineData(IncentiveType.FixedRateRebate)]
+    [InlineData(IncentiveType.AmountPerUom)]
+    public void Required_zero_inputs_are_rejected_even_when_other_values_are_extreme(IncentiveType incentive)
+    {
+        var store = new RebateStore
+        {
+            Rebate = new Rebate
+            {
+                Incentive = incentive,
+                Amount = incentive == IncentiveType.FixedCashAmount ? 0m : decimal.MaxValue,
+                Percentage = decimal.MaxValue
+            }
+        };
+        var products = new ProductStore();
+        products.Product.Price = decimal.MaxValue;
+        var request = Request();
+        request.Volume = 0m;
+
+        Assert.False(new RebateService(store, products, Calculators()).Calculate(request).Success);
+        Assert.Equal(0, store.Writes);
     }
 
     [Theory]

@@ -46,14 +46,33 @@ public class RunnerTests
         Assert.Equal(new[] { 10m }, Amounts(result.Output));
     }
 
-    [Fact]
-    public async Task Overflow_allows_another_calculation_in_the_same_session()
+    [Theory]
+    [InlineData("FixedRateRebate", "2", "79228162514264337593543950335", "3")]
+    [InlineData("AmountPerUom", "79228162514264337593543950335", "0", "2")]
+    public async Task Overflow_allows_another_calculation_in_the_same_session(
+        string incentive, string value, string price, string volume)
     {
-        var result = await Run("FixedRateRebate\n2\n79228162514264337593543950335\n3\nFixedCashAmount\n10\n0\n0\nq\n");
+        var result = await Run($"{incentive}\n{value}\n{price}\n{volume}\nFixedCashAmount\n10\n0\n0\nq\n");
 
         Assert.Equal(0, result.ExitCode);
         Assert.Contains("exceeds the supported decimal range", result.Error);
         Assert.Equal(new[] { 10m }, Amounts(result.Output));
+    }
+
+    [Theory]
+    [InlineData("79228162514264337593543950336")]
+    [InlineData("-79228162514264337593543950336")]
+    [InlineData("NaN")]
+    [InlineData("Infinity")]
+    [InlineData("1e3")]
+    [InlineData("1,000")]
+    public async Task Unsupported_or_out_of_range_numbers_can_be_corrected(string invalidValue)
+    {
+        var result = await Run($"FixedCashAmount\n{invalidValue}\n10\n0\n0\nq\n");
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Contains("Enter a decimal number", result.Error);
+        AssertAmount("10", result.Output);
     }
 
     [Fact]
