@@ -31,10 +31,9 @@
             "type": "process",
             "args": [
                 "watch",
-                "run",
+                "--project",
                 "${workspaceFolder}/Smartwyre.DeveloperTest.Runner/Smartwyre.DeveloperTest.Runner.csproj",
-                "/property:GenerateFullPaths=true",
-                "/consoleloggerparameters:NoSummary"
+                "run"
             ],
             "problemMatcher": "$msCompile"
         }
