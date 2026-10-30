@@ -5,12 +5,12 @@ namespace Smartwyre.DeveloperTest.Calculators;
 public sealed class FixedCashAmountCalculator : IRebateCalculator
 {
     public IncentiveType Incentive => IncentiveType.FixedCashAmount;
+    public RebateInputRequirements InputRequirements { get; } = new(Amount: true);
 
     public decimal? Calculate(Rebate rebate, Product product, decimal volume)
     {
-        if (rebate == null || product == null ||
-            !product.SupportedIncentives.HasFlag(SupportedIncentiveType.FixedCashAmount) ||
-            rebate.Amount == 0)
+        if (!InputRequirements.IsSatisfiedBy(rebate, product, volume) ||
+            !product.SupportedIncentives.HasFlag(SupportedIncentiveType.FixedCashAmount))
         {
             return null;
         }

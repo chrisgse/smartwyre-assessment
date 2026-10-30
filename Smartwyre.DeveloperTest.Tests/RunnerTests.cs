@@ -4,12 +4,33 @@ using System.Globalization;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using Smartwyre.DeveloperTest.Calculators;
+using Smartwyre.DeveloperTest.Runner;
+using Smartwyre.DeveloperTest.Types;
 using Xunit;
 
 namespace Smartwyre.DeveloperTest.Tests;
 
 public class RunnerTests
 {
+    [Fact]
+    public void New_incentive_supplies_console_choices_and_input_rules_through_registration()
+    {
+        // This incentive needs only price: zero amount and volume are valid.
+        using var input = new StringReader("99\n0\n0\n20\n0\n");
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+
+        var exitCode = RebateConsole.Run(Array.Empty<string>(),
+            new IRebateCalculator[] { new PriceOnlyCalculator() }, input, output, error);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Incentive type (99)", output.ToString());
+        Assert.Contains("Product price must be nonzero", error.ToString());
+        Assert.DoesNotContain("FixedCashAmount", output.ToString());
+        AssertAmount("40", output.ToString());
+    }
+
     [Fact]
     public async Task Invalid_incentive_can_be_corrected_without_restarting()
     {
@@ -18,6 +39,37 @@ public class RunnerTests
         Assert.Equal(0, result.ExitCode);
         Assert.Contains("Invalid input", result.Error);
         AssertAmount("6", result.Output);
+    }
+
+    [Fact]
+    public void Unregistered_incentive_is_rejected_even_if_it_is_a_known_enum_value()
+    {
+        using var input = new StringReader("FixedRateRebate\n99\n0\n20\n0\n");
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+
+        var exitCode = RebateConsole.Run(Array.Empty<string>(),
+            new IRebateCalculator[] { new PriceOnlyCalculator() }, input, output, error);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Invalid input. Enter one of: 99", error.ToString());
+        AssertAmount("40", output.ToString());
+    }
+
+    [Fact]
+    public void New_incentive_also_works_through_command_line_arguments()
+    {
+        using var input = new StringReader("");
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+
+        var exitCode = RebateConsole.Run(new[] { "99", "0", "20", "0" },
+            new IRebateCalculator[] { new PriceOnlyCalculator() }, input, output, error);
+
+        Assert.Equal(0, exitCode);
+        Assert.Empty(error.ToString());
+        Assert.DoesNotContain("[1/4]", output.ToString());
+        AssertAmount("40", output.ToString());
     }
 
     [Theory]
@@ -98,6 +150,14 @@ public class RunnerTests
 
         Assert.Equal(expectedExitCode, result.ExitCode);
         Assert.DoesNotContain("[1/4]", result.Output);
+    }
+
+    private sealed class PriceOnlyCalculator : IRebateCalculator
+    {
+        public IncentiveType Incentive => (IncentiveType)99;
+        public RebateInputRequirements InputRequirements { get; } = new(Price: true);
+        public decimal? Calculate(Rebate rebate, Product product, decimal volume) =>
+            InputRequirements.IsSatisfiedBy(rebate, product, volume) ? product.Price * 2m : null;
     }
 
     private static void AssertAmount(string expected, string output)

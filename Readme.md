@@ -80,13 +80,15 @@ the original database stores are still placeholders, not production persistence.
 
 Start with `Services/RebateService.cs`, then one calculator, then its tests.
 
-1. The runner constructs the service with two store interfaces and a collection of
-   calculators. This is manual dependency injection; no container is needed here.
+1. `Program` registers the calculators and supplies console streams to
+   `RebateConsole`. The console constructs the service with two store interfaces
+   and those registered calculators. This is manual dependency injection.
 2. The service rejects missing identifiers, looks up the rebate, and selects a
    calculator by incentive type. Unknown types and missing records return failure.
-3. The selected calculator checks the product's supported-incentive flags and the
-   fields needed by its formula. A nullable decimal distinguishes ineligibility
-   from an actual calculated value.
+3. Each calculator declares its nonzero input requirements. Both the console and
+   the calculator use that declaration; the calculator also checks the product's
+   supported-incentive flags. A nullable decimal distinguishes ineligibility from
+   an actual calculated value.
 4. The service saves a successful calculation through the same injected rebate
    store, exactly once, then returns success. Persistence exceptions propagate;
    callers must not be told a failed save succeeded.
@@ -122,13 +124,23 @@ needed by their consumers.
 
 1. Add its domain member to `IncentiveType` and a distinct power-of-two flag to
    `SupportedIncentiveType` if product eligibility needs one.
-2. Implement `IRebateCalculator`, including the new eligibility rule and formula.
-3. Register the calculator at the composition root (the runner's `Program`).
-4. Add formula and eligibility tests. Add runner input support if the new rule
-   requires different fields. `RebateService` stays unchanged.
+2. Implement `IRebateCalculator`, declaring its `InputRequirements` and adding its
+   eligibility rule and formula. Use `InputRequirements.IsSatisfiedBy` to enforce
+   the declared nonzero fields while retaining signed-value support.
+3. Register the calculator at the composition root (the runner's `Program`). The
+   console automatically discovers its name and nonzero requirements. The demo
+   product automatically includes newly declared supported-incentive flags.
+4. Add formula and eligibility tests. `RebateService` and the console input flow
+   stay unchanged for incentives using the existing input contract.
 
-The extension test registers a test-only incentive to demonstrate that the service
-has no hard-coded knowledge of the three current strategies.
+The runner currently accepts one amount-or-rate value, price, and volume. An
+incentive needing additional independently entered values requires extending that
+input contract explicitly.
+
+The extension tests register a test-only price-based incentive. They verify that
+it appears in the console, accepts zero amount and volume, rejects zero price,
+and calculates 40 from a price of 20. It also works through command-line arguments.
+The service and console have no hard-coded knowledge of this fourth strategy.
 
 ## Tradeoffs to discuss
 

@@ -5,13 +5,13 @@ namespace Smartwyre.DeveloperTest.Calculators;
 public sealed class FixedRateRebateCalculator : IRebateCalculator
 {
     public IncentiveType Incentive => IncentiveType.FixedRateRebate;
+    public RebateInputRequirements InputRequirements { get; } = new(Percentage: true, Price: true, Volume: true);
 
     public decimal? Calculate(Rebate rebate, Product product, decimal volume)
     {
         // Preserve the starter's zero checks; negative values remain eligible.
-        if (rebate == null || product == null ||
-            !product.SupportedIncentives.HasFlag(SupportedIncentiveType.FixedRateRebate) ||
-            rebate.Percentage == 0 || product.Price == 0 || volume == 0)
+        if (!InputRequirements.IsSatisfiedBy(rebate, product, volume) ||
+            !product.SupportedIncentives.HasFlag(SupportedIncentiveType.FixedRateRebate))
         {
             return null;
         }

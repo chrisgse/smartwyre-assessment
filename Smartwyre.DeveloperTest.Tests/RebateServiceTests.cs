@@ -116,6 +116,7 @@ public class RebateServiceTests
     private sealed class NewCalculator : IRebateCalculator
     {
         public IncentiveType Incentive => (IncentiveType)99;
+        public RebateInputRequirements InputRequirements { get; } = new();
         public decimal? Calculate(Rebate rebate, Product product, decimal volume) => 42m;
     }
 
